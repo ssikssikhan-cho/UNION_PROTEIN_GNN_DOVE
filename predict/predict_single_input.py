@@ -1,36 +1,4 @@
-# Publication:  "Protein Docking Model Evaluation by Graph Neural Networks", Xiao Wang, Sean T Flannery and Daisuke Kihara,  (2020)
-
-#GNN-Dove is a computational tool using graph neural network that can evaluate the quality of docking protein-complexes.
-
-#Copyright (C) 2020 Xiao Wang, Sean T Flannery, Daisuke Kihara, and Purdue University.
-
-#License: GPL v3 for academic use. (For commercial use, please contact us for different licensing.)
-
-#Contact: Daisuke Kihara (dkihara@purdue.edu)
-
-#
-
-# This program is free software: you can redistribute it and/or modify
-
-# it under the terms of the GNU General Public License as published by
-
-# the Free Software Foundation, version 3.
-
-#
-
-# This program is distributed in the hope that it will be useful,
-
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-# GNU General Public License V3 for more details.
-
-#
-
-# You should have received a copy of the GNU v3.0 General Public License
-
-# along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.en.html.
+# 단일 PDB 구조 파일을 예측
 import os
 from ops.os_operation import mkdir
 import shutil
@@ -43,6 +11,8 @@ from data_processing.collate_fn import collate_fn
 from data_processing.Single_Dataset import Single_Dataset
 from torch.utils.data import DataLoader
 
+
+#사전 학습된 GNN 모델을 초기화하고 로드
 def init_model(model_path,params):
     model = GNN_Model(params)
     print('    Total params: %.10fM' % (count_parameters(model) / 1000000.0))
@@ -52,6 +22,8 @@ def init_model(model_path,params):
     model.load_state_dict(state_dict['state_dict'])
     model.eval()
     return model,device
+
+#모델을 사용하여 입력 데이터의 예측을 수행
 def Get_Predictions(dataloader,device,model):
     Final_pred = []
     with torch.no_grad():
@@ -64,6 +36,8 @@ def Get_Predictions(dataloader,device,model):
             Final_pred += list(pred1)
     return Final_pred
 
+
+#단일 PDB 파일을 예측하는 전체 파이프라인을 구성
 def predict_single_input(input_path,params):
     #create saving path
     save_path=os.path.join(os.getcwd(),"Predict_Result")
@@ -121,22 +95,3 @@ def predict_single_input(input_path,params):
     with open(pred_path,'w') as file:
         file.write("Input\tScore\n")
         file.write(original_pdb_name+"\t%.4f\n"%Final_Pred[0])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

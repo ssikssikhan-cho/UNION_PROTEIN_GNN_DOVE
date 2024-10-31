@@ -1,37 +1,4 @@
-# Publication:  "Protein Docking Model Evaluation by Graph Neural Networks", Xiao Wang, Sean T Flannery and Daisuke Kihara,  (2020)
-
-#GNN-Dove is a computational tool using graph neural network that can evaluate the quality of docking protein-complexes.
-
-#Copyright (C) 2020 Xiao Wang, Sean T Flannery, Daisuke Kihara, and Purdue University.
-
-#License: GPL v3 for academic use. (For commercial use, please contact us for different licensing.)
-
-#Contact: Daisuke Kihara (dkihara@purdue.edu)
-
-#
-
-# This program is free software: you can redistribute it and/or modify
-
-# it under the terms of the GNU General Public License as published by
-
-# the Free Software Foundation, version 3.
-
-#
-
-# This program is distributed in the hope that it will be useful,
-
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-# GNU General Public License V3 for more details.
-
-#
-
-# You should have received a copy of the GNU v3.0 General Public License
-
-# along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.en.html.
-
+#GNN 모델의 주의(attention) 가중치를 시각화
 import os
 from ops.os_operation import mkdir
 import shutil
@@ -45,6 +12,7 @@ from data_processing.Single_Dataset import Single_Dataset
 from torch.utils.data import DataLoader
 from predict.predict_single_input import init_model
 
+#데이터 로더에서 배치 단위로 데이터를 가져와 주의 가중치를 계산하는 함수
 def Get_Attention(dataloader,device,model):
     Final_atten1 = []
     Final_atten2 = []
@@ -60,6 +28,8 @@ def Get_Attention(dataloader,device,model):
             Final_atten2 += list(atten2)
     return Final_atten1,Final_atten2
 
+
+#단일 PDB 파일에 대해 주의 가중치를 계산하고, 시각화할 수 있는 형식으로 저장하는 전체 파이프라인을 수행
 def visualize_attention(input_path,params):
     #create saving path
     save_path=os.path.join(os.getcwd(),"Predict_Result")
@@ -132,6 +102,7 @@ def visualize_attention(input_path,params):
     Write_Attention(ligand_path, new_ligand_path1, new_ligand_path2, attention1[rcount:], attention2[rcount:])
 
 
+#원래의 PDB 파일에 각 원자의 주의 가중치를 포함하여 새로운 PDB 파일을 생성
 def Write_Attention(read_path,w_path1,w_path2,attention1,attention2):
     count_atom=0
     with open(w_path1,'w') as wfile1:

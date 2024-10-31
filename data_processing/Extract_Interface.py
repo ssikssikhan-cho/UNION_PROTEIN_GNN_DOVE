@@ -1,41 +1,11 @@
-# Publication:  "Protein Docking Model Evaluation by Graph Neural Networks", Xiao Wang, Sean T Flannery and Daisuke Kihara,  (2020)
-
-#GNN-Dove is a computational tool using graph neural network that can evaluate the quality of docking protein-complexes.
-
-#Copyright (C) 2020 Xiao Wang, Sean T Flannery, Daisuke Kihara, and Purdue University.
-
-#License: GPL v3 for academic use. (For commercial use, please contact us for different licensing.)
-
-#Contact: Daisuke Kihara (dkihara@purdue.edu)
-
-#
-
-# This program is free software: you can redistribute it and/or modify
-
-# it under the terms of the GNU General Public License as published by
-
-# the Free Software Foundation, version 3.
-
-#
-
-# This program is distributed in the hope that it will be useful,
-
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-# GNU General Public License V3 for more details.
-
-#
-
-# You should have received a copy of the GNU v3.0 General Public License
-
-# along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.en.html.
-
+#PDB파일 형식의 입력을 처리하여 단백질 사이의 인터페이스를 추출
+# PDB 파일에서 원자 정보를 읽고, 수용체와 리간드의 인터페이스를 추출하여 별도의 파일로 저장
 import os
 from ops.Timer_Control import set_timeout,after_timeout
+#RESIDUE_Forbidden_SET는 특정 잔기(예: FAD)를 제외하기 위해 사용,특정 잔기를 출력하지 않도록 하기 위한 설정
 RESIDUE_Forbidden_SET={"FAD"}
 
+#Extract_Interface함수의 출력:수용체와 리간드의 인터페이스 파일 경로
 def Extract_Interface(pdb_path):
     """
     specially for 2 docking models
@@ -44,15 +14,20 @@ def Extract_Interface(pdb_path):
     :return:
     extract a receptor and ligand, meanwhile, write two files of the receptor interface part, ligand interface part
     """
+    #각 원자 정보 저장하는 배열
     receptor_list=[]
     ligand_list=[]
+    #각 잔기의 원자 좌표 정보를 저장하는 배열
     rlist=[]
     llist=[]
+    #원자 개수를 계산
     count_r=0
     count_l=0
+    
+
     with open(pdb_path,'r') as file:
         line = file.readline()               # call readline()
-        while line[0:4]!='ATOM':
+        while line[0:4]!='ATOM':            #PDB 파일에서 원자 좌표 정보를 나타내는 ATOM 섹션을 찾음
             line=file.readline()
         atomid = 0
         count = 1
@@ -70,9 +45,9 @@ def Extract_Interface(pdb_path):
             if len(dat_in) == 0:
                 line = file.readline()
                 continue
-            if (dat_in[0] == 'TER'):
+            if (dat_in[0] == 'TER'):            #PDB 파일에서 TER 레코드는 체인의 끝을 나타냄
                 b=b+1
-            if (dat_in[0] == 'ATOM'):
+            if (dat_in[0] == 'ATOM'):           #원자 정보는 체인 ID, 잔기 ID, 좌표(x, y, z), 잔기 유형, 그리고 원자 유형 등을 포함하여 추출
                 chain_id = line[21]
                 residue_id = int(line[23:26])
 
@@ -82,18 +57,18 @@ def Extract_Interface(pdb_path):
                 residue_type = line[17:20]
                 # First try CA distance of contact map
                 atom_type = line[13:16].strip()
-                if b == 0:
-                    rlist.append(tmp_list)
+                if b == 0:                                            #수용체로 분류  
+                    rlist.append(tmp_list)                            #수용체의 잔기원자좌표
                     tmp_list = []
                     tmp_list.append([x, y, z, atom_type, count_l])
                     count_l += 1
-                    receptor_list.append(line)
-                else:
-                    llist.append(tmp_list)
+                    receptor_list.append(line)                        #수용체원자데이터를 가짐
+                else:                                                 #리간드로 분류
+                    llist.append(tmp_list)                            #리간드의 잔기원자좌표
                     tmp_list = []
                     tmp_list.append([x, y, z, atom_type, count_l])
                     count_l += 1
-                    ligand_list.append(line)
+                    ligand_list.append(line)                          #리간드원자데이터를 가짐
 
                 atomid = int(dat_in[1])
                 chain_id = line[21]
@@ -112,10 +87,16 @@ def Extract_Interface(pdb_path):
 
 
 @set_timeout(100000, after_timeout)
+
+#입력: 수용체와 리간드의 원자 리스트와 잔기 리스트
+#출력: 인터페이스에 포함된 수용체와 리간드의 최종 리스트
 def Form_interface(rlist,llist,receptor_list,ligand_list,cut_off=10):
     cut_off=cut_off**2
+    #인터페이스에 존재하는 수용체와 리간드 잔기의인덱스를 저장
     r_index=set()
     l_index=set()
+
+    #두 잔기리스트의 각 원자쌍 사이의 유클리드 거리를 제곱하여 cut_off 이하면 r_index, l_index에 추가
     for rindex,item1 in enumerate(rlist):
         for lindex,item2 in enumerate(llist):
             min_distance=1000000
@@ -146,6 +127,9 @@ def Form_interface(rlist,llist,receptor_list,ligand_list,cut_off=10):
         newllist.append(llist[l_index[k]])
     print("After filtering the interface region, %d/%d residue in receptor, %d/%d residue in ligand" % (len(newrlist),len(rlist), len(newllist),len(llist)))
     #get the line to write new interface file
+    
+    
+    #필터링된 잔기의 각 원자 정보를 원본 리스트에서 가져와 final_receptor, final_ligand에 저장
     final_receptor=[]
     final_ligand=[]
     for residue in newrlist:
@@ -168,7 +152,8 @@ def Form_interface(rlist,llist,receptor_list,ligand_list,cut_off=10):
     print(final_receptor,final_ligand)
     return final_receptor,final_ligand
 
-
+#입력: 인터페이스 리스트와 PDB 파일 경로, 확장자
+#출력: 새로 작성된 파일 경로, RESIDUE_Forbidden_SET에 포함된 잔기는 제외시킴
 def Write_Interface(line_list,pdb_path,ext_file):
     new_path=pdb_path[:-4]+ext_file
     with open(new_path,'w') as file:

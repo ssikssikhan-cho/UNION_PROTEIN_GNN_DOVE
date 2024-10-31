@@ -1,37 +1,3 @@
-# Publication:  "Protein Docking Model Evaluation by Graph Neural Networks", Xiao Wang, Sean T Flannery and Daisuke Kihara,  (2020)
-
-#GNN-Dove is a computational tool using graph neural network that can evaluate the quality of docking protein-complexes.
-
-#Copyright (C) 2020 Xiao Wang, Sean T Flannery, Daisuke Kihara, and Purdue University.
-
-#License: GPL v3 for academic use. (For commercial use, please contact us for different licensing.)
-
-#Contact: Daisuke Kihara (dkihara@purdue.edu)
-
-#
-
-# This program is free software: you can redistribute it and/or modify
-
-# it under the terms of the GNU General Public License as published by
-
-# the Free Software Foundation, version 3.
-
-#
-
-# This program is distributed in the hope that it will be useful,
-
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-# GNU General Public License V3 for more details.
-
-#
-
-# You should have received a copy of the GNU v3.0 General Public License
-
-# along with this program.  If not, see https://www.gnu.org/licenses/gpl-3.0.en.html.
-
 from torch.utils.data import Dataset
 import numpy as np
 import torch
@@ -39,9 +5,11 @@ import os
 
 class Single_Dataset(Dataset):
 
+    #file_list: 데이터셋으로 사용할 파일 경로의 리스트(.npz 파일 경로 포함)
     def __init__(self,file_list):
         self.listfiles=file_list
 
+    #idx: 인덱스 값(데이터셋 내 특정 위치의 파일을 참조)
     def __getitem__(self, idx):
         file_path=self.listfiles[idx]
         data=np.load(file_path)
@@ -58,6 +26,6 @@ class Single_Dataset(Dataset):
         return data
 
 
-
+    #데이터셋의 총 길이를 반환
     def __len__(self):
         return len(self.listfiles)
