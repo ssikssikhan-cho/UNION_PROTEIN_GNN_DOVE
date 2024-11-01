@@ -67,15 +67,16 @@ def visualize_attention(input_path,params):
     tmp_save_path2 = os.path.join(save_path, "attention2.npy")
     np.save(tmp_save_path1, Final_atten1)
     np.save(tmp_save_path2, Final_atten2)
-    receptor_path=os.path.join(save_path,"Input.rinterface")
-    ligand_path=os.path.join(save_path,"Input.linterface")
-    rcount = 0
-    with open(receptor_path, "r") as file:
+    #receptor_path=os.path.join(save_path,"Input.rinterface")
+    #ligand_path=os.path.join(save_path,"Input.linterface")
+    atom_count = 0
+    with open(structure_path, "r") as file:
         line = file.readline()
         while line:
             if len(line) > 0 and line[:4] == "ATOM":
-                rcount += 1
+                atom_count += 1
             line = file.readline()
+    """""
     lcount = 0
     with open(ligand_path, "r") as file:
         line = file.readline()
@@ -83,23 +84,32 @@ def visualize_attention(input_path,params):
             if len(line) > 0 and line[:4] == "ATOM":
                 lcount += 1
             line = file.readline()
+    """
     attention1=Final_atten1
     attention2=Final_atten2
-    all_atom = rcount + lcount
+
+    #all_atom = rcount + lcount
+    
     if len(attention1) == 1:
         attention1 = attention1[0]
         attention2 = attention2[0]
-    print("number of atoms total %d" % all_atom)
+    print("number of atoms total %d" % atom_count)
     print("attention shape", attention1.shape)
-    assert all_atom == len(attention1) and all_atom == len(attention2)
+    assert atom_count == len(attention1) and atom_count == len(attention2)
     attention1 = np.sum(attention1, axis=1)
     attention2 = np.sum(attention2, axis=1)
+
+    """"
     new_receptor_path1 = os.path.join(save_path, "attention1_receptor.pdb")
     new_ligand_path1 = os.path.join(save_path, "attention1_ligand.pdb")
     new_receptor_path2 = os.path.join(save_path, "attention2_receptor.pdb")
     new_ligand_path2 = os.path.join(save_path, "attention2_ligand.pdb")
     Write_Attention(receptor_path, new_receptor_path1, new_receptor_path2, attention1[:rcount], attention2[:rcount])
     Write_Attention(ligand_path, new_ligand_path1, new_ligand_path2, attention1[rcount:], attention2[rcount:])
+    """
+    new_attention_path1 = os.path.join(save_path, "attention1.pdb")
+    new_attention_path2 = os.path.join(save_path, "attention2.pdb")
+    Write_Attention(structure_path, new_attention_path1, new_attention_path2, attention1, attention2)
 
 
 #원래의 PDB 파일에 각 원자의 주의 가중치를 포함하여 새로운 PDB 파일을 생성
@@ -113,8 +123,8 @@ def Write_Attention(read_path,w_path1,w_path2,attention1,attention2):
                     if len(line) > 0 and line[:4] == "ATOM":
                         tmp_atten1=attention1[count_atom]
                         tmp_atten2=attention2[count_atom]
-                        wline1=line[:60]+"%6.2f\n"%tmp_atten1
-                        wline2=line[:60]+"%6.2f\n"%tmp_atten2
+                        wline1=line[:60]+"%6.2f\n" %tmp_atten1
+                        wline2=line[:60]+"%6.2f\n" %tmp_atten2
                         wfile1.write(wline1)
                         wfile2.write(wline2)
                         count_atom+=1

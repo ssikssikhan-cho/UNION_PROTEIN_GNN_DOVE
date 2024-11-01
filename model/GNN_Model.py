@@ -6,6 +6,7 @@ import time
 from multiprocessing import Pool
 from model.layers import GAT_gate
 
+#원자당 특성 벡터의 길이
 N_atom_features = 28
 
 class GNN_Model(nn.Module):
@@ -28,7 +29,7 @@ class GNN_Model(nn.Module):
 
         self.mu = nn.Parameter(torch.Tensor([params['initial_mu']]).float())
         self.dev = nn.Parameter(torch.Tensor([params['initial_dev']]).float())
-        self.embede = nn.Linear(2 * N_atom_features, d_graph_layer, bias=False)
+        self.embede = nn.Linear(N_atom_features, d_graph_layer, bias=False)
         self.params=params
 
 
@@ -46,24 +47,27 @@ class GNN_Model(nn.Module):
                 c_hs = self.FC[k](c_hs)
 
         c_hs = torch.sigmoid(c_hs)
-
         return c_hs
+    
+
     def Formulate_Adj2(self,c_adjs2,c_valid,atom_list,device):
         study_distance = c_adjs2.clone().detach().to(device)  # only focused on where there exist atoms, ignore the area filled with 0
         study_distance = torch.exp(-torch.pow(study_distance - self.mu.expand_as(study_distance), 2) / self.dev)
         filled_value = torch.Tensor([0]).expand_as(study_distance).to(device)
+
         for batch_idx in range(len(c_adjs2)):
             num_atoms = int(atom_list[batch_idx])
-            count_receptor = len(c_valid[batch_idx].nonzero())
-            c_adjs2[batch_idx,:count_receptor,count_receptor:num_atoms]=torch.where(c_adjs2[batch_idx,:count_receptor,count_receptor:num_atoms]<=10,study_distance[batch_idx,:count_receptor,count_receptor:num_atoms],filled_value[batch_idx,:count_receptor,count_receptor:num_atoms])
-            c_adjs2[batch_idx,count_receptor:num_atoms,:count_receptor]=c_adjs2[batch_idx,:count_receptor,count_receptor:num_atoms].t()
+            #count_receptor = len(c_valid[batch_idx].nonzero())
+            c_adjs2[batch_idx,:num_atoms, :num_atoms]=torch.where(c_adjs2[batch_idx,:num_atoms, :num_atoms]<=10,study_distance[batch_idx,:num_atoms, :num_atoms],filled_value[batch_idx,:num_atoms, :num_atoms])
+            #c_adjs2[batch_idx,count_receptor:num_atoms,:count_receptor]=c_adjs2[batch_idx,:count_receptor,count_receptor:num_atoms].t()
         return c_adjs2
 
     def get_attention_weight(self,data):
         c_hs, c_adjs1, c_adjs2 = data
-        atten1,c_hs1 = self.gconv1[0](c_hs, c_adjs1,request_attention=True)  # filled 0 part will not effect other parts
-        atten2,c_hs2 = self.gconv1[0](c_hs, c_adjs2,request_attention=True)
+        atten1, c_hs1 = self.gconv1[0](c_hs, c_adjs1,request_attention=True)  # filled 0 part will not effect other parts
+        atten2, c_hs2 = self.gconv1[0](c_hs, c_adjs2,request_attention=True)
         return atten1,atten2
+    
     def embede_graph(self, data):
         """
 
@@ -74,12 +78,11 @@ class GNN_Model(nn.Module):
         regularization = torch.empty(len(self.gconv1), device=c_hs.device)
 
         for k in range(len(self.gconv1)):
-            c_hs1 = self.gconv1[k](c_hs, c_adjs1)#filled 0 part will not effect other parts
-            c_hs2 = self.gconv1[k](c_hs, c_adjs2)
-            c_hs = c_hs2 - c_hs1
+            c_hs = self.gconv1[k](c_hs, c_adjs1)#filled 0 part will not effect other parts
             c_hs = F.dropout(c_hs, p=self.dropout_rate, training=self.training)
         #c_hs = c_hs.sum(1)
         return c_hs
+    
     def Get_Prediction(self,c_hs,atom_list):
         prediction=[]
         for batch_idx in range(len(atom_list)):
@@ -91,6 +94,7 @@ class GNN_Model(nn.Module):
             prediction.append(tmp_pred)
         prediction = torch.stack(prediction, 0)
         return prediction
+    
     def train_model(self,data,device):
         #get data
         c_hs, c_adjs1, c_adjs2, c_valid, num_atoms = data
@@ -105,6 +109,7 @@ class GNN_Model(nn.Module):
         c_hs = self.fully_connected(c_hs)
         c_hs = c_hs.view(-1)
         return c_hs
+    
     def test_model(self, data,device):
         c_hs, c_adjs1, c_adjs2, c_valid, num_atoms = data
         c_hs = self.embede(c_hs)
@@ -116,10 +121,11 @@ class GNN_Model(nn.Module):
         c_hs = self.fully_connected(c_hs)
         c_hs = c_hs.view(-1)
         return c_hs
+    
     def test_model_final(self,data,device):
-        c_hs, c_adjs1, c_adjs2, c_valid, num_atoms = data
+        c_hs, c_adjs1, c_adjs2, num_atoms = data
         c_hs = self.embede(c_hs)
-        c_adjs2 = self.Formulate_Adj2(c_adjs2, c_valid, num_atoms, device)
+        c_adjs2 = self.Formulate_Adj2(c_adjs2, num_atoms, device)
         attention1, attention2 = self.get_attention_weight((c_hs, c_adjs1, c_adjs2))
         # then do the gate
         c_hs = self.embede_graph((c_hs, c_adjs1, c_adjs2))
@@ -128,12 +134,14 @@ class GNN_Model(nn.Module):
         c_hs = self.fully_connected(c_hs)
         c_hs = c_hs.view(-1)
         return c_hs,attention1,attention2
+    
     def eval_model_attention(self,data,device):
-        c_hs, c_adjs1, c_adjs2, c_valid, num_atoms = data
+        c_hs, c_adjs1, c_adjs2, num_atoms = data
         c_hs = self.embede(c_hs)
-        c_adjs2 = self.Formulate_Adj2(c_adjs2, c_valid, num_atoms, device)
+        c_adjs2 = self.Formulate_Adj2(c_adjs2, num_atoms, device)
         attention1,attention2 = self.get_attention_weight((c_hs, c_adjs1, c_adjs2))
         return attention1,attention2
+    
     def feature_extraction(self,c_hs):
         for k in range(len(self.FC)):
                 # c_hs = self.FC[k](c_hs)
@@ -144,9 +152,9 @@ class GNN_Model(nn.Module):
 
             return c_hs
     def model_gnn_feature(self, data,device):
-        c_hs, c_adjs1, c_adjs2, c_valid, num_atoms = data
+        c_hs, c_adjs1, c_adjs2,  num_atoms = data
         c_hs = self.embede(c_hs)
-        c_adjs2 = self.Formulate_Adj2(c_adjs2, c_valid, num_atoms,device)
+        c_adjs2 = self.Formulate_Adj2(c_adjs2,  num_atoms,device)
         # then do the gate
         c_hs = self.embede_graph((c_hs, c_adjs1, c_adjs2))
         # sum based on the atoms

@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 
+#GAT 구현
+#각 노드의 특성을 주변노드의 특성을 반영하여, 유의미한 노드의 특성을 반영
 class GAT_gate(nn.Module):
     def __init__(self, n_in_feature, n_out_feature):
         super(GAT_gate, self).__init__()

@@ -37,14 +37,16 @@ def atom_feature(m, atom_i):
 #전체 분자에 있는 모든 원자의 특성을 벡터로 변환하여 배열로 반환
 # m : 분자 객체 (RDKit의 Mol 객체)
 # H : n x 56 크기의 numpy 배열(n : 분자수)
-def get_atom_feature(m, is_ligand=True):
+def get_atom_feature(m):
     n = m.GetNumAtoms()
     H = []
     for i in range(n):
         H.append(atom_feature(m, i))
     H = np.array(H)
+    """
     if is_ligand:         #is_ligand=True 면 H의 오른쪽에 동일한 크기의 0행렬(0으로 채워진 배열)을 추가하여 n x 56 크기로 확장
         H = np.concatenate([H, np.zeros((n,28))], 1)
     else:
         H = np.concatenate([np.zeros((n,28)), H], 1)
+    """
     return H

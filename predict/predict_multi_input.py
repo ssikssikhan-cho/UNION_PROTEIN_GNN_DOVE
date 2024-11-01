@@ -27,6 +27,7 @@ def predict_multi_input(input_path, params):
     mkdir(save_path)
 
     fold_choice = params['fold']
+    
     # loading the model
     if fold_choice != -1:
         model_path = os.path.join(os.getcwd(), "best_model")

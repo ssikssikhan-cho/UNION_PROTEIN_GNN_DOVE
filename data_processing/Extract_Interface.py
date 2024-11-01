@@ -15,20 +15,18 @@ def Extract_Interface(pdb_path):
     extract a receptor and ligand, meanwhile, write two files of the receptor interface part, ligand interface part
     """
     #각 원자 정보 저장하는 배열
-    receptor_list=[]
-    ligand_list=[]
+    atom_list=[]
     #각 잔기의 원자 좌표 정보를 저장하는 배열
-    rlist=[]
-    llist=[]
+    about_atom=[]
     #원자 개수를 계산
-    count_r=0
-    count_l=0
+    count=0
     
 
     with open(pdb_path,'r') as file:
         line = file.readline()               # call readline()
         while line[0:4]!='ATOM':            #PDB 파일에서 원자 좌표 정보를 나타내는 ATOM 섹션을 찾음
             line=file.readline()
+            
         atomid = 0
         count = 1
         goon = False
@@ -39,65 +37,90 @@ def Extract_Interface(pdb_path):
         pre_residue_id = 0
         pre_chain_id = line[21]
         first_change=True
-        b=0
+        #b=0
         while line:
             dat_in = line[0:80].split()
             if len(dat_in) == 0:
                 line = file.readline()
                 continue
-            if (dat_in[0] == 'TER'):            #PDB 파일에서 TER 레코드는 체인의 끝을 나타냄
-                b=b+1
+            #if (dat_in[0] == 'TER'):            #PDB 파일에서 TER 레코드는 체인의 끝을 나타냄
+                #b=b+1
             if (dat_in[0] == 'ATOM'):           #원자 정보는 체인 ID, 잔기 ID, 좌표(x, y, z), 잔기 유형, 그리고 원자 유형 등을 포함하여 추출
-                chain_id = line[21]
-                residue_id = int(line[23:26])
+                #chain_id = line[21]
+                #residue_id = int(line[23:26])
 
                 x = float(line[30:38])
                 y = float(line[38:46])
                 z = float(line[46:54])
-                residue_type = line[17:20]
+                #residue_type = line[17:20]
                 # First try CA distance of contact map
                 atom_type = line[13:16].strip()
-                if b == 0:                                            #수용체로 분류  
-                    rlist.append(tmp_list)                            #수용체의 잔기원자좌표
-                    tmp_list = []
-                    tmp_list.append([x, y, z, atom_type, count_l])
-                    count_l += 1
-                    receptor_list.append(line)                        #수용체원자데이터를 가짐
-                else:                                                 #리간드로 분류
-                    llist.append(tmp_list)                            #리간드의 잔기원자좌표
-                    tmp_list = []
-                    tmp_list.append([x, y, z, atom_type, count_l])
-                    count_l += 1
-                    ligand_list.append(line)                          #리간드원자데이터를 가짐
+                atom_list.append([x,y,z,atom_type,count])
+                about_atom.append(line)
+
+                #if b == 0:                                            #수용체로 분류  
+                #    rlist.append(tmp_list)                            #수용체의 잔기원자좌표
+                #    tmp_list = []
+                #    tmp_list.append([x, y, z, atom_type, count_l])
+                #    count_l += 1
+                #    receptor_list.append(line)                        #수용체원자데이터를 가짐
+                #else:                                                 #리간드로 분류
+                #    llist.append(tmp_list)                            #리간드의 잔기원자좌표
+                #    tmp_list = []
+                #    tmp_list.append([x, y, z, atom_type, count_l])
+                #    count_l += 1
+                #    ligand_list.append(line)                          #리간드원자데이터를 가짐
 
                 atomid = int(dat_in[1])
                 chain_id = line[21]
                 count = count + 1
                 pre_residue_type = residue_type
-                pre_residue_id = residue_id
+                #pre_residue_id = residue_id
                 pre_chain_id = chain_id
             line = file.readline()
-    print("Extracting %d/%d atoms for receptor, %d/%d atoms for ligand"%(len(receptor_list),count_r,len(ligand_list),count_l))
-    final_receptor, final_ligand=Form_interface(rlist,llist,receptor_list,ligand_list)
+    #print("Extracting %d/%d atoms for receptor, %d/%d atoms for ligand"%(len(receptor_list),count_r,len(ligand_list),count_l))
+    #final_receptor, final_ligand=Form_interface(rlist,llist,receptor_list,ligand_list)
     #write that into our path
-    rpath=Write_Interface(final_receptor,pdb_path,".rinterface")
-    lpath=Write_Interface(final_ligand, pdb_path, ".linterface")
-    print(rpath,lpath)
-    return rpath,lpath
-
+    #rpath=Write_Interface(final_receptor,pdb_path,".rinterface")
+    #lpath=Write_Interface(final_ligand, pdb_path, ".linterface")
+    #print(rpath,lpath)
+    #return rpath,lpath
+    print(f"Extracted {len(about_atom)} atoms for the unified structure")
+    unified_path = Write_Interface(about_atom, pdb_path, ".interface")
+    print(f"Interface file written to {unified_path}")
+    return unified_path
 
 @set_timeout(100000, after_timeout)
 
 #입력: 수용체와 리간드의 원자 리스트와 잔기 리스트
 #출력: 인터페이스에 포함된 수용체와 리간드의 최종 리스트
-def Form_interface(rlist,llist,receptor_list,ligand_list,cut_off=10):
+def Form_interface(atom_list,about_atom,cut_off=10):
     cut_off=cut_off**2
-    #인터페이스에 존재하는 수용체와 리간드 잔기의인덱스를 저장
-    r_index=set()
-    l_index=set()
+    
+    #interface_index:상호작용 기준(거리cut_off)으로 원자들의 인덱스를 set 형태로 저장
+    interface_index=set()
+    num_atom = len(atom_list)
 
+    for i in range(num_atom):
+        for j in range(i+1, num_atom):
+            min_distance=1000000
+            atom1=atom_list[i]
+            atom2=atom_list[j]
+            distance=0
+            for k in range(3):
+              distance+=(atom1[k]-atom2[k])**2
+            if distance <=cut_off:
+                min_distance=distance
+                interface_index.add(i)
+                interface_index.add(j)
+    interface_index=list(interface_index)
+    #about_atom : PDB파일에서 추출된 원자 정보 리스트
+    final_atom=[about_atom[idx] for idx in interface_index]
+    print("After filtering the interface region, {len(final_atom)} atoms are in the interface")
+    return final_atom
+    
     #두 잔기리스트의 각 원자쌍 사이의 유클리드 거리를 제곱하여 cut_off 이하면 r_index, l_index에 추가
-    for rindex,item1 in enumerate(rlist):
+"""    for rindex,item1 in enumerate(rlist):
         for lindex,item2 in enumerate(llist):
             min_distance=1000000
             residue1_len=len(item1)
@@ -151,7 +174,7 @@ def Form_interface(rlist,llist,receptor_list,ligand_list,cut_off=10):
     print("After filtering the interface region, %d receptor, %d ligand"%(len(final_receptor),len(final_ligand)))
     print(final_receptor,final_ligand)
     return final_receptor,final_ligand
-
+"""
 #입력: 인터페이스 리스트와 PDB 파일 경로, 확장자
 #출력: 새로 작성된 파일 경로, RESIDUE_Forbidden_SET에 포함된 잔기는 제외시킴
 def Write_Interface(line_list,pdb_path,ext_file):
